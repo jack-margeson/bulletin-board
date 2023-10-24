@@ -9,6 +9,7 @@ CS4065 Computer Networks, October 2023
 # Imports and declarations
 import socket
 import datetime
+import threading
 
 
 class Client:
@@ -57,31 +58,20 @@ class Client:
         self.id = -1
         self.username = username
         self.group = group
+        self.client_socket = None
+        self.client_running = False
 
     def client_startup(self):
-        """
-        TODO: Ask server implementation for the nearest ID not yet claimed,
-        which should be set for this client, replacing the hard-coded
-        implementation below where it's just set to 0.
-        """
-        self.id = 0
-
         self.client_print_startup_message()
+        # Instantiate a socket for the client 
+        self.client_socket = socket.socket()
+        self.client_running = True
+        self.client_terminal_prompt()
 
-        if self.id != -1:
-            # Client has been assigned an ID (and the server is running.)
-            self.client_running = True
-            # Start the client user terminal.
-            self.client_terminal_prompt()
-        else:
-            print(
-                "An error has occured in recieving client id from the server. Please try again later."
-            )
 
     def client_print_startup_message(self):
         print("-------------------------------------")
-        print("🗣️ OBBS - Open Bulletin Board Software")
-        print("(client instantiated with ID #%d)" % (self.id))
+        print("🗣️ OBBS - Open Bulletin Board Software\n")
         print(
             "\n👨 Username: %s, group: %s"
             % (self.username, self.group if self.group != "" else "n/a")
@@ -94,20 +84,50 @@ class Client:
         while self.client_running is True:
             print("> ", end="")
             u_input = input()
-            if not u_input.startswith(self.prefix):
+            # Parse user command, in case of parameters.
+            u_command = u_input.split(" ")[0]
+            u_parameters = u_input.split(" ")[1:]
+
+            # Make sure the comannd starts with the right prefix.
+            if not u_command.startswith(self.prefix):
                 print("Invalid command.")
+            # Make sure the command is in the list of valid commands.
+            elif u_command[1:] not in self.valid_commands:
+                print("Invalid command.")
+            elif self.id < 0 and u_command[1:] not in ["help", "connect"]:
+                # Connection to server has not been made yet--only commands that should work
+                # are help and connect.
+                print("The command you have entered, '%s', is only available when the client is connected.\nPlease connect to a server using '%s' and try again." % (u_command, "%connect host port"))
             else:
                 """
                 TODO: Create command switch statement here, document all commands
                 """
-                # Parse user command, in case of parameters.
-                u_command = u_input.split(" ")[0]
-                u_parameters = u_input.split(" ")[1:]
+                # Match user input with command.
                 match u_command[1:]:
                     case "help":
                         print("help command")
                     case "connect":
-                        print("connect command")
+                        if self.id > 0:
+                            # The client has already been assigned an ID, ignore the request to connect until disconnected from current server.
+                            print('You are already connected to a server. If you wish to switch servers, please disconnect and try again.')
+                        else:
+                            # Check if we have the correct number of parameters.
+                            if len(u_parameters) < 2:
+                                print("Incorrect parameters. Please supply an IP number and port number of the bulletin board.\nExample: %connect 127.0.0.1 2048")
+                            else: 
+                                # We have the correct nummebrs of parameters. Try connecting to the bulletin board.
+                                host = str(u_parameters[0])
+                                port = int(u_parameters[1])
+                                print("Connecting to %s:%d..." % (host, port))
+                                self.client_socket.connect((host,port))
+                                # Client has been connected, send username and group if applicable.
+                                self.client_socket.send((self.username + " " + self.group).encode())
+                                # Get the client ID which is sent from the server.
+                                self.id = int(self.client_socket.recv(1024).decode())
+                                # Print message to client terminal.
+                                print("Success! Connected to %s:%s as ID #%d." % (host, port, self.id))
+                                # Create thread for handling responses from the server.
+                                threading.Thread(target=self.client_read_server_response, daemon=True).start()
                     case "join":
                         print("join command")
                     case "post":
@@ -132,6 +152,13 @@ class Client:
                         print("groupleave command")
                     case "groupmessage":
                         print("groupmessgae command")
+
+    def client_read_server_response(self):
+        while self.client_running is True:
+            data = self.client_socket.recv(1024).decode()
+            if (data):
+                print(data)
+        return 0
 
     def client_shutdown(self):
         return 0
