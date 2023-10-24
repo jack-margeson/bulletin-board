@@ -100,7 +100,38 @@ class Client:
                 """
                 TODO: Create command switch statement here, document all commands
                 """
-                print("Valid command!")
+                # Parse user command, in case of parameters.
+                u_command = u_input.split(" ")[0]
+                u_parameters = u_input.split(" ")[1:]
+                match u_command[1:]:
+                    case "help":
+                        print("help command")
+                    case "connect":
+                        print("connect command")
+                    case "join":
+                        print("join command")
+                    case "post":
+                        print("post command")
+                    case "users":
+                        print("users command")
+                    case "leave":
+                        print("leave command")
+                    case "message":
+                        print("message command")
+                    case "exit":
+                        print("exit command")
+                    case "groups":
+                        print("groups command")
+                    case "groupjoin":
+                        print("groupsjoin command")
+                    case "grouppost":
+                        print("grouppost command")
+                    case "groupusers":
+                        print("groupusers command")
+                    case "groupleave":
+                        print("groupleave command")
+                    case "groupmessage":
+                        print("groupmessgae command")
 
     def client_shutdown(self):
         return 0
