@@ -26,6 +26,7 @@ class Server:
         self.groups = {"default": []}
         # Boards (and posts) are loaded from boards.pkl on startup.
         self.boards = {"default": {}}
+        self.lock = threading.Lock()
 
     def server_shutdown(self, signum, frame):
         print("Ctrl+C pressed. Starting shutdown...")
@@ -78,7 +79,7 @@ class Server:
             ).start()
 
     def open_connection(self, client_socket, client_address):
-        # Recieve the client username and group
+        # Receive the client username and group
         client_info = client_socket.recv(1024).decode()
         client_name = client_info.split(" ")[0]
         client_group = client_info.split(" ")[1]
@@ -88,69 +89,78 @@ class Server:
         # Announce that a client has been connected.
         print("A client with ID #%d has connected, waiting for queries." % (client_id))
 
-        # TODO: This could lead to a possible race condition--mutex these global memory changes.
-        # Add the client socket to the list of connected clients.
-        self.connected_clients[client_id] = {
-            "name": client_name,
-            "group": client_group,
-            "client_socket": client_socket,
-        }
+        # Manage client, group, and board data
+        self.add_clients_groups(client_id, client_name, client_group, client_socket)
 
-        # Add the client to the list of users in a group. All users are added to the group "default" unless
-        # a group name is specified. The list of users in a group is saved on shutdown and recalled on boot
-        # as a user should stay in a group unless they 1. connect with another group name instead or 2. use the
-        # %groupleave command. Users can be in multiple groups.
-        # TODO: save this grouplist and restore it on server shutdown/boot
+        # Broadcast to all clients that a new client has joined
+        self.broadcast_client_join(client_id, client_name)
 
-        # If the user isn't in default, add to default server.
-        if client_name not in self.groups["default"]:
-            self.groups["default"].append(client_name)
-        # If the user supplied a group on connect that doesn't exist, create the group.
-        if client_group not in self.groups.keys():
-            self.groups[client_group] = [client_name]
-        # If the user supplied a group on connect that exists, and they aren't a part of it
-        # already, add them to that group. Otherwise, just do nothing.
-        elif client_name not in self.groups[client_group]:
-            self.groups[client_group].append(client_name)
-
-        print(self.groups)
-
-        # We're also going to build a board for each group.
-        # If default doesn't have a board:
-        if "default" not in self.boards.keys():
-            self.boards["default"] = {}
-        # Go through the list of groups. If there's a group that doesn't have a
-        # board yet, go ahead and add a blank board.
-        for group in self.groups.keys():
-            if group not in self.boards.keys():
-                self.boards[group] = {}
-
-        print(self.boards)
-
-        # Increment the client_ids for the next client that gets opened.
-        self.client_ids += 1
-
-        # Broadcast to all clients that a new client has joined.
-        for key, client in self.connected_clients.items():
-            # Exclude the current connected client
-            if key != client_id:
-                # Print to all other clients on their socket that *this* client has joined with its information
-                client["client_socket"].send(
-                    str(
-                        "%s has joined the server (client ID #%d)."
-                        % (client_name, client_id)
-                    ).encode()
-                )
-
-        # While the connection with this client is open:
+        # Handle client requests
         while True:
-            # Wait for data to be recieved from the client.
             data = client_socket.recv(1024).decode()
-            # Parse the data sent from the client.
-            # TODO: parse command
-            print(data)
-            # Send data back to the client.
-            # TODO: send data back to client.
+            if not data:
+                break
+            command = data.split(" ")[0]
+            params = data.split(" ")[1:]
+            # TODO: Handle all necessary commands
+            match command[1:]:
+                case "%command":
+                    self.handle_command(command, *params)
+
+    def add_clients_groups(self, client_id, client_name, client_group, client_socket):
+        """Add the client to the list of users in a group.
+        All users are added to the group "default" unless a group name is specified.
+        The list of users in a group is saved on shutdown and recalled on boot as
+        a user should stay in a group unless they
+            1. connect with another group name instead or 
+            2. use the %groupleave command.
+        Users can be in multiple groups.
+        """
+        with self.lock:
+            # Increment client_ids for the next client
+            self.client_ids += 1
+
+            # Add client to the connected clients list
+            self.connected_clients[client_id] = {
+                "name": client_name,
+                "group": client_group,
+                "client_socket": client_socket,
+            }
+
+            # GROUPS
+            # If the user isn't in default, add to default group.
+            if client_name not in self.groups["default"]:
+                self.groups["default"].append(client_name)
+            # If the user supplied a group on connect that doesn't exist, create the group.
+            if client_group not in self.groups.keys():
+                self.groups[client_group] = [client_name]
+            # If user supplied group on connect that does exist, add them to the group.
+            elif client_name not in self.groups[client_group]:
+                self.groups[client_group].append(client_name)
+            print(self.groups)
+
+            # BOARDS
+            # Create a board for default if it doesn't exist yet
+            if "default" not in self.boards.keys():
+                self.boards["default"] = {}
+            # Add blank boards for all groups that don't have a board yet
+            for group in self.groups.keys():
+                if group not in self.boards.keys():
+                    self.boards[group] = {}
+            print(self.boards)
+
+    def broadcast_client_join(self, client_id, client_name):
+        """Broadcast to all clients that a new client has joined."""
+        with self.lock:
+            encodedMessage = str(
+                "%s has joined the server (client ID #%d)."
+                % (client_name, client_id)
+            ).encode()
+            for cid, client in self.connected_clients.items():
+                # Exclude the current connected client
+                if cid != client_id:
+                    # Print to all other clients on their socket that *this* client has joined with its information
+                    client["client_socket"].send(encodedMessage)
 
 
 class Message:

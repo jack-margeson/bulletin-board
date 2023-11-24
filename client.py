@@ -102,7 +102,8 @@ class Client:
                 )
             else:
                 """
-                TODO: Create command switch statement here, document all commands
+                TODO: Pass commands up to server to handle, client shouldn't handle requests other than "%connect" and "%exit".
+                TODO: "%help" Should only return the "connect" command at first since that is all the user can do at that point.
                 """
                 # Match user input with command.
                 match u_command[1:]:
