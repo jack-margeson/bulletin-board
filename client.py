@@ -142,28 +142,48 @@ class Client:
                                     target=self.client_read_server_response, daemon=True
                                 ).start()
                     case "join":
+                        # The join command is a shortcut for "%groupjoin default",
+                        # as it's just joining the default group messageboard.
                         print("join command")
                     case "post":
+                        # The post command is a shortcut for "%grouppost default",
+                        # as it's just posting to the default group messageboard.
                         print("post command")
                     case "users":
+                        # The users command is just a shortcut for "%groupusers default",
+                        # as it's just finding users from the default group.
                         print("users command")
                     case "leave":
+                        # The leave command is a shortcut for "%groupleave default",
+                        # which is kind of useless as all users will be added to default
+                        # when they reconnect.
                         print("leave command")
                     case "message":
+                        # The message command is a shortcut for "%groupmessage default",
+                        # grabbing the message with ID from the default group messageboard.
                         print("message command")
                     case "exit":
+                        # Tells the server that the user is disconnecting, and kills the client.
                         print("exit command")
                     case "groups":
+                        # Asks the server for a list of potential groups, and displays them to client.
                         print("groups command")
                     case "groupjoin":
+                        # Tells server to add current user to a group. If the group doesn't
+                        # exist, the server creates one and tells the client that.
                         print("groupsjoin command")
                     case "grouppost":
+                        # Prompts to create a message, sends the message data to the server, where
+                        # the servre saves it to the group specified.
                         print("grouppost command")
                     case "groupusers":
+                        # Asks the server for a list of users that are members of a group.
                         print("groupusers command")
                     case "groupleave":
+                        # Tells the server to remove current client from a specified group.
                         print("groupleave command")
                     case "groupmessage":
+                        # Asks the server to return a message from a certain group's messageboard by ID.
                         print("groupmessgae command")
 
     def client_read_server_response(self):

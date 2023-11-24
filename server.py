@@ -148,6 +148,7 @@ class Server:
             data = client_socket.recv(1024).decode()
             # Parse the data sent from the client.
             # TODO: parse command
+            print(data)
             # Send data back to the client.
             # TODO: send data back to client.
 
