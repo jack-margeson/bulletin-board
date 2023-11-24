@@ -8,9 +8,13 @@ CS4065 Computer Networks, October 2023
 
 import socket
 import threading
+import signal
+import sys
+import pickle
 
 # Define the max number of connections
-MAX_CONNECTIONS = 2
+MAX_CONNECTIONS = 5
+
 
 class Server:
     def __init__(self, host, port) -> None:
@@ -18,6 +22,20 @@ class Server:
         self.port = port
         self.client_ids = 0
         self.connected_clients = {}
+        self.groups = {"default": []}
+
+    def server_shutdown(self, signum, frame):
+        print("Ctrl+C pressed. Starting shutdown...")
+        # Pickle anything that needs to be saved and reloaded next time the
+        # server starts up.
+        # Save the list of groups to groups.pkl using pickle.
+        output = open("groups.pkl", "wb")
+        pickle.dump(self.groups, output)
+        output.close()
+        print("List of groups saved...")
+        # Shut down the process.
+        print("Done! See you later.")
+        sys.exit(0)
 
     def server_startup(self):
         # Get instance of a socket for the server
@@ -26,20 +44,30 @@ class Server:
         self.server_socket.bind((self.host, self.port))
         # Set max amount of users to MAX_CONNECTIONS
         self.server_socket.listen(MAX_CONNECTIONS)
+
+        # Restore data that needs to be set on server startup
+        # Reload the group pickle file.
+        groups_pkl = open("groups.pkl", "rb")
+        self.groups = pickle.load(groups_pkl)
+        print("Loaded groups: ", self.groups)
+
         # Listen for incoming connections
         print("Listening for connections on %s:%s..." % (self.host, self.port))
         self.server_socket.listen()
         while True:
             # Send each client to open_connections
             client_socket, client_address = self.server_socket.accept()
-            threading.Thread(target=self.open_connection, args=(client_socket, client_address), daemon=True).start()
-
+            threading.Thread(
+                target=self.open_connection,
+                args=(client_socket, client_address),
+                daemon=True,
+            ).start()
 
     def open_connection(self, client_socket, client_address):
         # Recieve the client username and group
         client_info = client_socket.recv(1024).decode()
-        client_name = client_info.split(" ")[0] 
-        client_group = client_info.split(" ")[1] 
+        client_name = client_info.split(" ")[0]
+        client_group = client_info.split(" ")[1]
         client_id = self.client_ids
         # Send client ID to client to confirm connection
         client_socket.send(str(client_id).encode())
@@ -48,7 +76,29 @@ class Server:
 
         # TODO: This could lead to a possible race condition--mutex these global memory changes.
         # Add the client socket to the list of connected clients.
-        self.connected_clients[client_id] = {"name": client_name, "group": client_group, "client_socket": client_socket}
+        self.connected_clients[client_id] = {
+            "name": client_name,
+            "group": client_group,
+            "client_socket": client_socket,
+        }
+
+        # Add the client to the list of users in a group. All users are added to the group "default" unless
+        # a group name is specified. The list of users in a group is saved on shutdown and recalled on boot
+        # as a user should stay in a group unless they 1. connect with another group name instead or 2. use the
+        # %groupleave command. Users can be in multiple groups.
+        # TODO: save this grouplist and restore it on server shutdown/boot
+
+        # If the user isn't in default, add to default server.
+        if client_name not in self.groups["default"]:
+            self.groups["default"].append(client_name)
+        # If the user supplied a group on connect that doesn't exist, create the group.
+        if client_group not in self.groups.keys():
+            self.groups[client_group] = [client_name]
+        # If the user supplied a group on connect that exists, and they aren't a part of it
+        # already, add them to that group. Otherwise, just do nothing.
+        elif client_name not in self.groups[client_group]:
+            self.groups[client_group].append(client_name)
+
         # Increment the client_ids for the next client that gets opened.
         self.client_ids += 1
 
@@ -57,7 +107,12 @@ class Server:
             # Exclude the current connected client
             if key != client_id:
                 # Print to all other clients on their socket that *this* client has joined with its information
-                client['client_socket'].send(str("%s has joined the server (client ID #%d)." % (client_name, client_id)).encode())
+                client["client_socket"].send(
+                    str(
+                        "%s has joined the server (client ID #%d)."
+                        % (client_name, client_id)
+                    ).encode()
+                )
 
         # While the connection with this client is open:
         while True:
@@ -87,8 +142,12 @@ class Message:
 def main():
     host = input("Specify host IP (RETURN for localhost): ")
     port = input("Enter port (>=1024, default 1024): ")
-    server = Server(host if host != "" else socket.gethostbyname(socket.gethostname()), 
-                    int(port) if port != "" else 1024)
+    server = Server(
+        host if host != "" else socket.gethostbyname(socket.gethostname()),
+        int(port) if port != "" else 1024,
+    )
+    # Register the Ctrl+C signal handler
+    signal.signal(signal.SIGINT, server.server_shutdown)
     server.server_startup()
 
     return 0

@@ -63,18 +63,17 @@ class Client:
 
     def client_startup(self):
         self.client_print_startup_message()
-        # Instantiate a socket for the client 
+        # Instantiate a socket for the client
         self.client_socket = socket.socket()
         self.client_running = True
         self.client_terminal_prompt()
-
 
     def client_print_startup_message(self):
         print("-------------------------------------")
         print("🗣️ OBBS - Open Bulletin Board Software\n")
         print(
             "\n👨 Username: %s, group: %s"
-            % (self.username, self.group if self.group != "" else "n/a")
+            % (self.username, self.group if self.group != "" else "default")
         )
         print("🕑 Time: %s" % (datetime.datetime.now()))
         print("\n💡 TIP: use %help to view commands.")
@@ -97,7 +96,10 @@ class Client:
             elif self.id < 0 and u_command[1:] not in ["help", "connect"]:
                 # Connection to server has not been made yet--only commands that should work
                 # are help and connect.
-                print("The command you have entered, '%s', is only available when the client is connected.\nPlease connect to a server using '%s' and try again." % (u_command, "%connect host port"))
+                print(
+                    "The command you have entered, '%s', is only available when the client is connected.\nPlease connect to a server using '%s' and try again."
+                    % (u_command, "%connect host port")
+                )
             else:
                 """
                 TODO: Create command switch statement here, document all commands
@@ -109,25 +111,36 @@ class Client:
                     case "connect":
                         if self.id > 0:
                             # The client has already been assigned an ID, ignore the request to connect until disconnected from current server.
-                            print('You are already connected to a server. If you wish to switch servers, please disconnect and try again.')
+                            print(
+                                "You are already connected to a server. If you wish to switch servers, please disconnect and try again."
+                            )
                         else:
                             # Check if we have the correct number of parameters.
                             if len(u_parameters) < 2:
-                                print("Incorrect parameters. Please supply an IP number and port number of the bulletin board.\nExample: %connect 127.0.0.1 2048")
-                            else: 
+                                print(
+                                    "Incorrect parameters. Please supply an IP number and port number of the bulletin board.\nExample: %connect 127.0.0.1 2048"
+                                )
+                            else:
                                 # We have the correct nummebrs of parameters. Try connecting to the bulletin board.
                                 host = str(u_parameters[0])
                                 port = int(u_parameters[1])
                                 print("Connecting to %s:%d..." % (host, port))
-                                self.client_socket.connect((host,port))
+                                self.client_socket.connect((host, port))
                                 # Client has been connected, send username and group if applicable.
-                                self.client_socket.send((self.username + " " + self.group).encode())
+                                self.client_socket.send(
+                                    (self.username + " " + self.group).encode()
+                                )
                                 # Get the client ID which is sent from the server.
                                 self.id = int(self.client_socket.recv(1024).decode())
                                 # Print message to client terminal.
-                                print("Success! Connected to %s:%s as ID #%d." % (host, port, self.id))
+                                print(
+                                    "Success! Connected to %s:%s as ID #%d."
+                                    % (host, port, self.id)
+                                )
                                 # Create thread for handling responses from the server.
-                                threading.Thread(target=self.client_read_server_response, daemon=True).start()
+                                threading.Thread(
+                                    target=self.client_read_server_response, daemon=True
+                                ).start()
                     case "join":
                         print("join command")
                     case "post":
@@ -156,7 +169,7 @@ class Client:
     def client_read_server_response(self):
         while self.client_running is True:
             data = self.client_socket.recv(1024).decode()
-            if (data):
+            if data:
                 print(data)
         return 0
 
