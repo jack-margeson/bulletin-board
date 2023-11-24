@@ -87,7 +87,7 @@ class Client:
             u_command = u_input.split(" ")[0]
             u_parameters = u_input.split(" ")[1:]
 
-            # Make sure the comannd starts with the right prefix.
+            # Make sure the command starts with the right prefix.
             if not u_command.startswith(self.prefix):
                 print("Invalid command.")
             # Make sure the command is in the list of valid commands.
@@ -107,7 +107,21 @@ class Client:
                 # Match user input with command.
                 match u_command[1:]:
                     case "help":
-                        print("help command")
+                        print(
+                            "A %connect command followed by the address and port number of a running bulletin board server to connect to.\n"
+                            "A %join command to join the single message board.\n"
+                            "A %post command followed by the message subject and the message content or main body to post a message to the board.\n"
+                            "A %users command to retrieve a list of users in the same group.\n"
+                            "A %leave command to leave the group.\n"
+                            "A %message command followed by message ID to retrieve the content of the message.\n"
+                            "An %exit command to disconnect from the server and exit the client program.\n"
+                            "A %groups command to retrieve a list of all groups that can be joined.\n"
+                            "A %groupjoin command followed by the group id/name to join a specific group.\n"
+                            "A %grouppost command followed by the group id/name, the message subject, and the message content or main body to post a message to a message board owned by a specific group.\n"
+                            "A %groupusers command followed by the group id/name to retrieve a list of users in the given group.\n"
+                            "A %groupleave command followed by the group id/name to leave a specific group.\n"
+                            "A %groupmessage command followed by the group id/name and message ID to retrieve the content of the message posted earlier on a message board owned by a specific group."
+                        )
                     case "connect":
                         if self.id > 0:
                             # The client has already been assigned an ID, ignore the request to connect until disconnected from current server.
