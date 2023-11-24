@@ -22,7 +22,10 @@ class Server:
         self.port = port
         self.client_ids = 0
         self.connected_clients = {}
+        # Groups loaded from groups.pkl on startup.
         self.groups = {"default": []}
+        # Boards (and posts) are loaded from boards.pkl on startup.
+        self.boards = {"default": {}}
 
     def server_shutdown(self, signum, frame):
         print("Ctrl+C pressed. Starting shutdown...")
@@ -33,6 +36,11 @@ class Server:
         pickle.dump(self.groups, output)
         output.close()
         print("List of groups saved...")
+        # Save the list of boards and posts to boards.pkl using pickle.
+        output = open("boards.pkl", "wb")
+        pickle.dump(self.boards, output)
+        output.close()
+        print("List of boards and posts saved...")
         # Shut down the process.
         print("Done! See you later.")
         sys.exit(0)
@@ -49,7 +57,13 @@ class Server:
         # Reload the group pickle file.
         groups_pkl = open("groups.pkl", "rb")
         self.groups = pickle.load(groups_pkl)
-        print("Loaded groups: ", self.groups)
+        print(len(self.groups), " group(s) loaded")
+        groups_pkl.close()
+        # Reload the group pickle file.
+        boards_pkl = open("boards.pkl", "rb")
+        self.boards = pickle.load(boards_pkl)
+        print(len(self.boards), " board(s) loaded")
+        boards_pkl.close()
 
         # Listen for incoming connections
         print("Listening for connections on %s:%s..." % (self.host, self.port))
@@ -98,6 +112,20 @@ class Server:
         # already, add them to that group. Otherwise, just do nothing.
         elif client_name not in self.groups[client_group]:
             self.groups[client_group].append(client_name)
+
+        print(self.groups)
+
+        # We're also going to build a board for each group.
+        # If default doesn't have a board:
+        if "default" not in self.boards.keys():
+            self.boards["default"] = {}
+        # Go through the list of groups. If there's a group that doesn't have a
+        # board yet, go ahead and add a blank board.
+        for group in self.groups.keys():
+            if group not in self.boards.keys():
+                self.boards[group] = {}
+
+        print(self.boards)
 
         # Increment the client_ids for the next client that gets opened.
         self.client_ids += 1
@@ -148,6 +176,7 @@ def main():
     )
     # Register the Ctrl+C signal handler
     signal.signal(signal.SIGINT, server.server_shutdown)
+    # Start the server.
     server.server_startup()
 
     return 0
