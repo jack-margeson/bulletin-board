@@ -102,10 +102,62 @@ class Server:
                 break
             command = data.split(" ")[0]
             params = data.split(" ")[1:]
-            # TODO: Handle all necessary commands
-            match command[1:]:
-                case "%command":
-                    self.handle_command(command, *params)
+            match command:
+                case "help":
+                    help_msg = (
+                        "A %connect command followed by the address and port number of a running bulletin board server to connect to.\n"
+                        "A %join command to join the single message board.\n"
+                        "A %post command followed by the message subject and the message content or main body to post a message to the board.\n"
+                        "A %users command to retrieve a list of users in the same group.\n"
+                        "A %leave command to leave the group.\n"
+                        "A %message command followed by message ID to retrieve the content of the message.\n"
+                        "An %exit command to disconnect from the server and exit the client program.\n"
+                        "A %groups command to retrieve a list of all groups that can be joined.\n"
+                        "A %groupjoin command followed by the group id/name to join a specific group.\n"
+                        "A %grouppost command followed by the group id/name, the message subject, and the message content or main body to post a message to a message board owned by a specific group.\n"
+                        "A %groupusers command followed by the group id/name to retrieve a list of users in the given group.\n"
+                        "A %groupleave command followed by the group id/name to leave a specific group.\n"
+                        "A %groupmessage command followed by the group id/name and message ID to retrieve the content of the message posted earlier on a message board owned by a specific group."
+                    )
+                    client_socket.send(help_msg.encode())
+                case "join":
+                    # TODO
+                    client_socket.send("join command.".encode())
+                case "post":
+                    # TODO
+                    client_socket.send("post command.".encode())
+                case "users":
+                    # TODO
+                    client_socket.send("users command.".encode())
+                case "leave":
+                    # TODO
+                    client_socket.send("leave command.".encode())
+                case "message":
+                    # TODO
+                    client_socket.send("message command.".encode())
+                case "exit":
+                    # TODO
+                    client_socket.send("exit command.".encode())
+                case "groups":
+                    # TODO
+                    client_socket.send("groups command.".encode())
+                case "groupsjoin":
+                    # TODO
+                    client_socket.send("groupsjoin command.".encode())
+                case "grouppost":
+                    # TODO
+                    client_socket.send("grouppost command.".encode())
+                case "groupusers":
+                    # TODO
+                    client_socket.send("groupusers command.".encode())
+                case "groupleave":
+                    # TODO
+                    client_socket.send("groupleave command.".encode())
+                case "groupmessage":
+                    # TODO
+                    client_socket.send("groupmessage command.".encode())
+                case _:
+                    client_socket.send("Invalid command.".encode())
 
     def add_clients_groups(self, client_id, client_name, client_group, client_socket):
         """Add the client to the list of users in a group.
