@@ -11,6 +11,7 @@ import threading
 import signal
 import sys
 import pickle
+from os.path import exists
 
 # Define the max number of connections
 MAX_CONNECTIONS = 5
@@ -56,15 +57,21 @@ class Server:
 
         # Restore data that needs to be set on server startup
         # Reload the group pickle file.
-        groups_pkl = open("groups.pkl", "rb")
-        self.groups = pickle.load(groups_pkl)
-        print(len(self.groups), " group(s) loaded")
-        groups_pkl.close()
-        # Reload the group pickle file.
-        boards_pkl = open("boards.pkl", "rb")
-        self.boards = pickle.load(boards_pkl)
-        print(len(self.boards), " board(s) loaded")
-        boards_pkl.close()
+        if exists("groups.pkl"):
+            groups_pkl = open("groups.pkl", "rb")
+            self.groups = pickle.load(groups_pkl)
+            print(len(self.groups), " group(s) loaded")
+            groups_pkl.close()
+        else:
+            print("No groups loaded (missing groups.pkl)!")
+        # Reload the board pickle file.
+        if exists("boards.pkl"):
+            boards_pkl = open("boards.pkl", "rb")
+            self.boards = pickle.load(boards_pkl)
+            print(len(self.boards), " board(s) loaded")
+            boards_pkl.close()
+        else:
+            print("No boards loaded (missing boards.pkl)!")
 
         # Listen for incoming connections
         print("Listening for connections on %s:%s..." % (self.host, self.port))
@@ -164,7 +171,7 @@ class Server:
         All users are added to the group "default" unless a group name is specified.
         The list of users in a group is saved on shutdown and recalled on boot as
         a user should stay in a group unless they
-            1. connect with another group name instead or 
+            1. connect with another group name instead or
             2. use the %groupleave command.
         Users can be in multiple groups.
         """
@@ -205,8 +212,7 @@ class Server:
         """Broadcast to all clients that a new client has joined."""
         with self.lock:
             encodedMessage = str(
-                "%s has joined the server (client ID #%d)."
-                % (client_name, client_id)
+                "%s has joined the server (client ID #%d)." % (client_name, client_id)
             ).encode()
             for cid, client in self.connected_clients.items():
                 # Exclude the current connected client
