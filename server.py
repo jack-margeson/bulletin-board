@@ -128,8 +128,16 @@ class Server:
                     )
                     client_socket.send(help_msg.encode())
                 case "join":
-                    # TODO
-                    client_socket.send("join command.".encode())
+                    response = ""
+                    # If the user isn't in default, add to default group.
+                    if client_name not in self.groups["default"]:
+                        self.groups["default"].append(client_name)
+                        response = "User %s added to group 'default'." % client_name
+                    else:
+                        response = (
+                            "User %s is already part of group 'default'." % client_name
+                        )
+                    client_socket.send(response.encode())
                 case "post":
                     # TODO
                     client_socket.send("post command.".encode())
@@ -151,8 +159,31 @@ class Server:
                         response += group + ", "
                     client_socket.send(response[:-2].encode())
                 case "groupsjoin":
-                    # TODO
-                    client_socket.send("groupsjoin command.".encode())
+                    response = ""
+                    if len(params) != 1:
+                        response = "Invalid %groupsjoin command. Please supply a group name to join."
+                    else:
+                        if params[0] not in self.groups.keys():
+                            # Add new group and board.
+                            self.groups[params[0]] = [client_name]
+                            self.boards[params[0]] = {}
+                            response = "User %s added to newly created group '%s'." % (
+                                client_name,
+                                params[0],
+                            )
+                        elif params[0] in self.groups.keys():
+                            if client_name in self.groups[params[0]]:
+                                response = "User %s is already part of group '%s'." % (
+                                    client_name,
+                                    params[0],
+                                )
+                            else:
+                                self.groups[params[0]].append(client_name)
+                                response = "User %s added to group '%s'." % (
+                                    client_name,
+                                    params[0],
+                                )
+                    client_socket.send(response.encode())
                 case "grouppost":
                     # TODO
                     client_socket.send("grouppost command.".encode())
@@ -189,9 +220,6 @@ class Server:
             }
 
             # GROUPS
-            # If the user isn't in default, add to default group.
-            if client_name not in self.groups["default"]:
-                self.groups["default"].append(client_name)
             # If the user supplied a group on connect that doesn't exist, create the group.
             if client_group not in self.groups.keys():
                 self.groups[client_group] = [client_name]
