@@ -189,6 +189,9 @@ class Server:
             }
 
             # GROUPS
+            # If the user isn't in default, add to default group.
+            if client_name not in self.groups["default"]:
+                self.groups["default"].append(client_name)
             # If the user supplied a group on connect that doesn't exist, create the group.
             if client_group not in self.groups.keys():
                 self.groups[client_group] = [client_name]
@@ -198,6 +201,9 @@ class Server:
             print(self.groups)
 
             # BOARDS
+            # Create a board for default if it doesn't exist yet
+            if "default" not in self.boards.keys():
+                self.boards["default"] = {}
             # Add blank boards for all groups that don't have a board yet
             for group in self.groups.keys():
                 if group not in self.boards.keys():
