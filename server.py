@@ -30,7 +30,7 @@ class Server:
         self.lock = threading.Lock()
 
     def server_shutdown(self, signum, frame):
-        print("Ctrl+C pressed. Starting shutdown...")
+        print("\nCtrl+C pressed. Starting shutdown...")
         # Pickle anything that needs to be saved and reloaded next time the
         # server starts up.
         # Save the list of groups to groups.pkl using pickle.
@@ -196,7 +196,7 @@ class Server:
             # If user supplied group on connect that does exist, add them to the group.
             elif client_name not in self.groups[client_group]:
                 self.groups[client_group].append(client_name)
-            print(self.groups)
+            # print(self.groups)
 
             # BOARDS
             # Create a board for default if it doesn't exist yet
@@ -206,7 +206,7 @@ class Server:
             for group in self.groups.keys():
                 if group not in self.boards.keys():
                     self.boards[group] = {}
-            print(self.boards)
+            # print(self.boards)
 
     def broadcast_client_join(self, client_id, client_name):
         """Broadcast to all clients that a new client has joined."""
