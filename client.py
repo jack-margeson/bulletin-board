@@ -125,7 +125,8 @@ class Client:
                             # If client is connect, exit just connects from server
                             self.client_disconnect_from_server()
                         else:
-                            # If user
+                            # If user is not connected to a server (ID == -1),
+                            # init the client shutdown from here.
                             self.client_shutdown()
                     case _:
                         if self.id > -1:
@@ -150,6 +151,9 @@ def main():
         group = "default"
     client = Client(username, group)
     # Register the Ctrl+C signal handler
+    # Here we're doing an IMMEDIATE client shutdown on Ctrl+C,
+    # where the user will be disconnected from the server in the event
+    # that they haven't disconnected before sending Ctrl+C.
     signal.signal(signal.SIGINT, client.client_shutdown)
     # Start client
     client.client_startup()
