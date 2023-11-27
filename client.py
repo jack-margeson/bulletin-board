@@ -34,9 +34,12 @@ class Client:
         sys.exit(0)
 
     def client_disconnect_from_server(self):
-        # TODO: send a ping to the server telling it that we're shutting down
-        # and that we should be removed from the current client list. WE WANT
-        # TO SET THE ID TO -1 TO INDICATE NOT CONNECTED HERE!
+        # Send the exit command to the server telling them that we're either
+        # just disconnecting from the server or fully shutting down the
+        # client (the server doesn't care about this distinction though)
+        self.client_socket.send("exit".encode())
+        # Set the ID of the client to -1 to represent being disconnected
+        self.id = -1
         pass
 
     def client_startup(self):
