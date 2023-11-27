@@ -10,6 +10,8 @@ CS4065 Computer Networks, October 2023
 import socket
 import datetime
 import threading
+import sys
+import signal
 
 
 class Client:
@@ -21,6 +23,21 @@ class Client:
         self.group = group
         self.client_socket = None
         self.client_running = False
+
+    def client_shutdown(self, signum, frame):
+        self.client_running = False
+        print("\nCtrl+C pressed. Starting shutdown...")
+        # If we haven't been disconnected from the server yet, do so.
+        if self.id > -1:
+            self.client_disconnect_from_server()
+        print("Done! See you later.")
+        sys.exit(0)
+
+    def client_disconnect_from_server(self):
+        # TODO: send a ping to the server telling it that we're shutting down
+        # and that we should be removed from the current client list. WE WANT
+        # TO SET THE ID TO -1 TO INDICATE NOT CONNECTED HERE!
+        pass
 
     def client_startup(self):
         self.client_print_startup_message()
@@ -101,10 +118,12 @@ class Client:
                                     target=self.client_read_server_response, daemon=True
                                 ).start()
                     case "exit":
-                        # TODO
                         if self.id > -1:
-                            print("Disconnect from server")
-                        print("Exit client program")
+                            # If client is connect, exit just connects from server
+                            self.client_disconnect_from_server()
+                        else:
+                            # If user
+                            self.client_shutdown()
                     case _:
                         if self.id > -1:
                             self.client_socket.send(u_command[1:].encode())
@@ -118,19 +137,17 @@ class Client:
                 print(data)
         return 0
 
-    def client_shutdown(self):
-        # TODO
-        return 0
-
 
 def main():
     # Get input from user, username and group
     username = input("Enter username: ")
     group = input("Enter group (RETURN if n/a): ")
     # Instantiate client interface
-    if group is "":
+    if group == "":
         group = "default"
     client = Client(username, group)
+    # Register the Ctrl+C signal handler
+    signal.signal(signal.SIGINT, client.client_shutdown)
     # Start client
     client.client_startup()
 
