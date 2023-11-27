@@ -138,7 +138,10 @@ class Client:
                             self.client_shutdown()
                     case _:
                         if self.id > -1:
-                            self.client_socket.send(u_command[1:].encode())
+                            command_str = u_command[1:]
+                            for param in u_parameters:
+                                command_str += " %s" % param
+                            self.client_socket.send(command_str.encode())
                             # Wait for the server to respond and wait for the
                             # client to read the data.
                             while not self.data_read.is_set():
@@ -157,17 +160,17 @@ class Client:
                 # If we have data that starts with "id ", this is from
                 # the server response containing our client ID on connect.
                 if data.startswith("id "):
-                    # Set the data_read bit to halt command input.
-                    self.data_read.set()
                     # Read the data and set the client ID.
                     self.id = int(data.split(" ")[1])
+                    # Resume command input--data has been handled
+                    self.data_read.set()
                 # All other non-nothing data is sent here.
                 elif data:
-                    # Halt command input until data is read.
-                    self.data_read.set()
                     # Print whatever the result of the command was recieved
                     # as data from the server.
                     print(data)
+                    # Resume command input--data has been handled
+                    self.data_read.set()
         return 0
 
 
