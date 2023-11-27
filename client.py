@@ -110,7 +110,6 @@ class Client:
                             self.client_socket.send(u_command[1:].encode())
                         else:
                             print("Please connect to a server first.")
-    
 
     def client_read_server_response(self):
         while self.client_running is True:
@@ -129,6 +128,8 @@ def main():
     username = input("Enter username: ")
     group = input("Enter group (RETURN if n/a): ")
     # Instantiate client interface
+    if group is "":
+        group = "default"
     client = Client(username, group)
     # Start client
     client.client_startup()
