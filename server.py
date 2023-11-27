@@ -92,7 +92,7 @@ class Server:
         client_group = client_info.split(" ")[1]
         client_id = self.client_ids
         # Send client ID to client to confirm connection
-        client_socket.send(str(client_id).encode())
+        client_socket.send(("id " + str(client_id)).encode())
         # Announce that a client has been connected.
         print("A client with ID #%d has connected, waiting for queries." % (client_id))
 
@@ -146,8 +146,10 @@ class Server:
                     # TODO
                     client_socket.send("exit command.".encode())
                 case "groups":
-                    # TODO
-                    client_socket.send("groups command.".encode())
+                    response = "Available groups: "
+                    for group in self.groups.keys():
+                        response += group + ", "
+                    client_socket.send(response[:-2].encode())
                 case "groupsjoin":
                     # TODO
                     client_socket.send("groupsjoin command.".encode())
@@ -187,32 +189,27 @@ class Server:
             }
 
             # GROUPS
-            # If the user isn't in default, add to default group.
-            if client_name not in self.groups["default"]:
-                self.groups["default"].append(client_name)
             # If the user supplied a group on connect that doesn't exist, create the group.
             if client_group not in self.groups.keys():
                 self.groups[client_group] = [client_name]
             # If user supplied group on connect that does exist, add them to the group.
             elif client_name not in self.groups[client_group]:
                 self.groups[client_group].append(client_name)
-            # print(self.groups)
+            print(self.groups)
 
             # BOARDS
-            # Create a board for default if it doesn't exist yet
-            if "default" not in self.boards.keys():
-                self.boards["default"] = {}
             # Add blank boards for all groups that don't have a board yet
             for group in self.groups.keys():
                 if group not in self.boards.keys():
                     self.boards[group] = {}
-            # print(self.boards)
+            print(self.boards)
 
     def broadcast_client_join(self, client_id, client_name):
         """Broadcast to all clients that a new client has joined."""
         with self.lock:
             encodedMessage = str(
-                "%s has joined the server (client ID #%d)." % (client_name, client_id)
+                "%s has joined the server (client ID #%d).\n> "
+                % (client_name, client_id)
             ).encode()
             for cid, client in self.connected_clients.items():
                 # Exclude the current connected client

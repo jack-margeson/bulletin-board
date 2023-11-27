@@ -12,6 +12,7 @@ import datetime
 import threading
 import sys
 import signal
+import time
 
 
 class Client:
@@ -23,6 +24,10 @@ class Client:
         self.group = group
         self.client_socket = None
         self.client_running = False
+        # Thread for handling responses from the server.
+        self.cmd_thread = threading.Thread(target=self.client_read_server_response)
+        self.data_read = threading.Event()
+        self.kill_listener = threading.Event()
 
     def client_shutdown(self, signum, frame):
         self.client_running = False
@@ -40,7 +45,9 @@ class Client:
         self.client_socket.send("exit".encode())
         # Set the ID of the client to -1 to represent being disconnected
         self.id = -1
-        pass
+        # Kill the command receiving thread.
+        self.kill_listener.set()
+        self.cmd_thread.join()
 
     def client_startup(self):
         self.client_print_startup_message()
@@ -109,17 +116,18 @@ class Client:
                                 self.client_socket.send(
                                     (self.username + " " + self.group).encode()
                                 )
-                                # Get the client ID which is sent from the server.
-                                self.id = int(self.client_socket.recv(1024).decode())
+                                # Start the command processing thread.
+                                self.cmd_thread.start()
+                                # Wait for the ID to be set.
+                                while not self.data_read.is_set():
+                                    time.sleep(0.1)
                                 # Print message to client terminal.
                                 print(
                                     "Success! Connected to %s:%s as ID #%d."
                                     % (host, port, self.id)
                                 )
-                                # Create thread for handling responses from the server.
-                                threading.Thread(
-                                    target=self.client_read_server_response, daemon=True
-                                ).start()
+                                self.data_read.clear()
+
                     case "exit":
                         if self.id > -1:
                             # If client is connect, exit just connects from server
@@ -131,14 +139,24 @@ class Client:
                     case _:
                         if self.id > -1:
                             self.client_socket.send(u_command[1:].encode())
+                            # Wait for the server to respond and wait for the
+                            # client to read the data.
+                            while not self.data_read.is_set():
+                                time.sleep(0.1)
+                            self.data_read.clear()
                         else:
                             print("Please connect to a server first.")
 
     def client_read_server_response(self):
-        while self.client_running is True:
-            data = self.client_socket.recv(1024).decode()
-            if data:
-                print(data)
+        while not self.kill_listener.is_set():
+            while self.client_running is True:
+                data = self.client_socket.recv(1024).decode()
+                if data.startswith("id "):
+                    self.data_read.set()
+                    self.id = int(data.split(" ")[1])
+                elif data:
+                    self.data_read.set()
+                    print(data)
         return 0
 
 
