@@ -148,14 +148,25 @@ class Client:
                             print("Please connect to a server first.")
 
     def client_read_server_response(self):
+        # While the listner is able to operate,
         while not self.kill_listener.is_set():
+            # if the client is running,
             while self.client_running is True:
+                # we constantly check for data being sent from the server.
                 data = self.client_socket.recv(1024).decode()
+                # If we have data that starts with "id ", this is from
+                # the server response containing our client ID on connect.
                 if data.startswith("id "):
+                    # Set the data_read bit to halt command input.
                     self.data_read.set()
+                    # Read the data and set the client ID.
                     self.id = int(data.split(" ")[1])
+                # All other non-nothing data is sent here.
                 elif data:
+                    # Halt command input until data is read.
                     self.data_read.set()
+                    # Print whatever the result of the command was recieved
+                    # as data from the server.
                     print(data)
         return 0
 
