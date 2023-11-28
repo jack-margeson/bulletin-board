@@ -162,7 +162,7 @@ class Server:
                     for group in self.groups.keys():
                         response += group + ", "
                     client_socket.send(response[:-2].encode())
-                case "groupsjoin":
+                case "groupjoin":
                     response = ""
                     if len(params) != 1:
                         response = "Invalid %groupsjoin command. Please supply a group name to join."
