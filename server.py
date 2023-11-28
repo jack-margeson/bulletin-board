@@ -97,8 +97,6 @@ class Server:
         client_group = client_info.split(" ")[1]
         client_id = self.client_ids
         
-        # Send client ID to client to confirm connection
-        client_socket.send(("id " + str(client_id)).encode())
         
         # Announce that a client has been connected.
         print("A client with ID #%d has connected, waiting for queries." % (client_id))
@@ -112,10 +110,12 @@ class Server:
         # List up to 5 groups when a user connects
         example_groups = list(self.groups)[0:5]
         if len(example_groups) > 0:
-            example_groups_message = "Current server groups: " + ", ".join(example_groups)
+            example_groups_message = " Current server groups: " + ", ".join(example_groups)
             if len(example_groups) > 5:
                 example_groups_message += "..."
-            client_socket.send(example_groups_message.encode())
+
+        # Send client ID to client to confirm connection + exmaple groups
+        client_socket.send(("id " + str(client_id) + example_groups_message).encode())
 
         # Handle client requests
         while True:
@@ -160,8 +160,15 @@ class Server:
                         break
                     self.handle_message(client_id, "default", *params)
                 case "exit":
-                    # TODO
-                    client_socket.send("exit command.".encode())
+                    # Remove the current user from the server.
+                    client_socket.send("You have been disconnected from the server.".encode())
+                    print("A client with ID #%d has disconnected from the server." % (client_id))
+                    # Close the client socket
+                    self.connected_clients[client_id]["client_socket"].close()
+                    # Remove the entry the current client in the connected clients list
+                    self.connected_clients.pop(client_id)
+                    # Return 0. This kills the thread for the current client request.
+                    return 0
                 case "groups":
                     response = "Available groups: "
                     for group in self.groups.keys():
@@ -242,7 +249,7 @@ class Server:
         """Broadcast to all clients that a new client has joined."""
         with self.lock:
             encodedMessage = str(
-                "%s has joined the server (client ID #%d).\n> "
+                "%s has joined the server (client ID #%d). "
                 % (client_name, client_id)
             ).encode()
             for cid, client in self.connected_clients.items():

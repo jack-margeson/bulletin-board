@@ -26,14 +26,15 @@ class Client:
         self.client_socket = None
         self.client_running = False
         # Thread for handling responses from the server.
-        self.cmd_thread = threading.Thread(target=self.client_read_server_response)
+        self.cmd_thread = None
         self.data_read = threading.Event()
-        self.kill_listener = threading.Event()
+        self.cmd_kill_listener = threading.Event()
+        self.recent_groups = ""
 
-    def client_shutdown(self, signum, frame):
+    def client_shutdown(self, signum=None, frame=None):
         """Shutdown the client and disconnect them from server if need be."""
         self.client_running = False
-        print("\nCtrl+C pressed. Starting shutdown...")
+        print("\nStarting shutdown...")
         # If we haven't been disconnected from the server yet, do so.
         if self.id > -1:
             self.client_disconnect_from_server()
@@ -46,17 +47,17 @@ class Client:
         # just disconnecting from the server or fully shutting down the
         # client (the server doesn't care about this distinction though)
         self.client_socket.send("exit".encode())
+        while not self.data_read.is_set():
+            time.sleep(0.1)
+        self.cmd_kill_listener.set()
+        self.cmd_thread.join()
+        self.client_socket.close()
         # Set the ID of the client to -1 to represent being disconnected
         self.id = -1
-        # Kill the command receiving thread.
-        self.kill_listener.set()
-        self.cmd_thread.join()
 
     def client_startup(self):
         """Start the client and create a socket and terminal prompt for interaction."""
         self.client_print_startup_message()
-        # Instantiate a socket for the client
-        self.client_socket = socket.socket()
         self.client_running = True
         self.client_terminal_prompt()
 
@@ -117,13 +118,17 @@ class Client:
                                 host = str(u_parameters[0])
                                 port = int(u_parameters[1])
                                 print("Connecting to %s:%d..." % (host, port))
+                                # Instantiate a socket for the client
+                                self.client_socket = socket.socket()
                                 self.client_socket.connect((host, port))
+                                # Start the command processing thread.
+                                self.cmd_kill_listener.clear()
+                                self.cmd_thread = threading.Thread(target=self.client_read_server_response)
+                                self.cmd_thread.start()
                                 # Client has been connected, send username and group if applicable.
                                 self.client_socket.send(
                                     (self.username + " " + self.group).encode()
                                 )
-                                # Start the command processing thread.
-                                self.cmd_thread.start()
                                 # Wait for the ID to be set.
                                 while not self.data_read.is_set():
                                     time.sleep(0.1)
@@ -132,6 +137,7 @@ class Client:
                                     "Success! Connected to %s:%s as ID #%d."
                                     % (host, port, self.id)
                                 )
+                                print(self.recent_groups)
                                 self.data_read.clear()
 
                     case "exit":
@@ -158,26 +164,26 @@ class Client:
 
     def client_read_server_response(self):
         """Read response from server and print to terminal."""
-        # While the listner is able to operate,
-        while not self.kill_listener.is_set():
-            # if the client is running,
-            while self.client_running is True:
-                # we constantly check for data being sent from the server.
-                data = self.client_socket.recv(1024).decode()
-                # If we have data that starts with "id ", this is from
-                # the server response containing our client ID on connect.
-                if data.startswith("id "):
-                    # Read the data and set the client ID.
-                    self.id = int(data.split(" ")[1])
-                    # Resume command input--data has been handled
-                    self.data_read.set()
-                # All other non-nothing data is sent here.
-                elif data:
-                    # Print whatever the result of the command was recieved
-                    # as data from the server.
-                    print(data)
-                    # Resume command input--data has been handled
-                    self.data_read.set()
+        # if the client is running,
+        while not self.cmd_kill_listener.is_set():
+            # we constantly check for data being sent from the server.
+            data = self.client_socket.recv(1024).decode()
+            # If we have data that starts with "id ", this is from
+            # the server response containing our client ID on connect.
+            if data.startswith("id "):
+                # Read the data and set the client ID.
+                self.id = int(data.split(" ")[1])
+                # Print the example groups 
+                self.recent_groups = (" ".join(data.split(" ")[2:]))
+                # Resume command input--data has been handled
+                self.data_read.set()
+            # All other non-nothing data is sent here.
+            elif data:
+                # Print whatever the result of the command was recieved
+                # as data from the server.
+                print(data)
+                # Resume command input--data has been handled
+                self.data_read.set()
         return 0
 
 
