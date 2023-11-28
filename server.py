@@ -20,6 +20,7 @@ MAX_CONNECTIONS = 5
 
 class Server:
     def __init__(self, host, port) -> None:
+        """Initialize the server."""
         self.host = host
         self.port = port
         self.client_ids = 0
@@ -31,6 +32,7 @@ class Server:
         self.lock = threading.Lock()
 
     def server_shutdown(self, signum, frame):
+        """Shutdown server and save data for next startup."""
         print("\nCtrl+C pressed. Starting shutdown...")
         # Pickle anything that needs to be saved and reloaded next time the
         # server starts up.
@@ -49,6 +51,7 @@ class Server:
         sys.exit(0)
 
     def server_startup(self):
+        """Startup server and restore data from previous shutdown."""
         # Get instance of a socket for the server
         self.server_socket = socket.socket()
         # Bind host address and port
@@ -87,6 +90,7 @@ class Server:
             ).start()
 
     def open_connection(self, client_socket, client_address):
+        """Open a socket connection to a given client. Active on separate thread from main server execution."""
         # Receive the client username and group
         client_info = client_socket.recv(1024).decode()
         client_name = client_info.split(" ")[0]
@@ -266,6 +270,7 @@ class Server:
                     client["client_socket"].send(encodedMessage)
     
     def handle_post(self, client_id, group, subject, *message):
+        """Post a message to a group's board with a given subject and message. Notifies all group members of post."""
         with self.lock:
             # Ensure client is part of group
             sender_name = self.connected_clients[client_id]["name"]
@@ -286,6 +291,7 @@ class Server:
                     info["client_socket"].send(f"New message posted in {group} by {sender_name} with ID#{message_id}.".encode())
 
     def handle_message(self, client_id, group, message_id):
+        """View a message from a group's board with a given message ID."""
         client_socket = self.connected_clients[client_id]["client_socket"]
 
         # Ensure client is part of group
@@ -306,6 +312,7 @@ class Server:
             client_socket.send("Error: Message ID does not exist.".encode())
 
     def handle_leave(self, client_id, group):
+        """Removes a user from a given group. Notifies all group members that user has left."""
         with self.lock:
             client_socket = self.connected_clients[client_id]["client_socket"]
             
@@ -323,21 +330,6 @@ class Server:
             for cid, info in self.connected_clients.items():
                 if info["name"] in self.groups[group]:
                     info["client_socket"].send(f"User {sender_name} has left group '{group}'.".encode())
-
-
-class Message:
-    def __init__(self, id, sender, post, date, subject) -> None:
-        self.id = id
-        self.sender = sender
-        self.post = post
-        self.date = date
-        self.subject = subject
-
-    def save_message(self, id):
-        raise NotImplementedError
-
-    def delete_message(self, id):
-        raise NotImplementedError
 
 
 def main():

@@ -19,6 +19,7 @@ class Client:
     prefix = "%"
 
     def __init__(self, username, group) -> None:
+        """Initialize the client."""
         self.id = -1
         self.username = username
         self.group = group
@@ -30,6 +31,7 @@ class Client:
         self.kill_listener = threading.Event()
 
     def client_shutdown(self, signum, frame):
+        """Shutdown the client and disconnect them from server if need be."""
         self.client_running = False
         print("\nCtrl+C pressed. Starting shutdown...")
         # If we haven't been disconnected from the server yet, do so.
@@ -39,6 +41,7 @@ class Client:
         sys.exit(0)
 
     def client_disconnect_from_server(self):
+        """Disconnect client from the server."""
         # Send the exit command to the server telling them that we're either
         # just disconnecting from the server or fully shutting down the
         # client (the server doesn't care about this distinction though)
@@ -50,6 +53,7 @@ class Client:
         self.cmd_thread.join()
 
     def client_startup(self):
+        """Start the client and create a socket and terminal prompt for interaction."""
         self.client_print_startup_message()
         # Instantiate a socket for the client
         self.client_socket = socket.socket()
@@ -57,6 +61,7 @@ class Client:
         self.client_terminal_prompt()
 
     def client_print_startup_message(self):
+        """Startup message printed to the terminal."""
         print("-------------------------------------")
         print("🗣️ OBBS - Open Bulletin Board Software\n")
         print(
@@ -68,6 +73,7 @@ class Client:
         print("-------------------------------------")
 
     def client_terminal_prompt(self):
+        """Main interaction loop for terminal."""
         while self.client_running is True:
             u_input = input("> ")
             # Parse user command, in case of parameters.
@@ -151,6 +157,7 @@ class Client:
                             print("Please connect to a server first.")
 
     def client_read_server_response(self):
+        """Read response from server and print to terminal."""
         # While the listner is able to operate,
         while not self.kill_listener.is_set():
             # if the client is running,
