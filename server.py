@@ -96,8 +96,10 @@ class Server:
         client_name = client_info.split(" ")[0]
         client_group = client_info.split(" ")[1]
         client_id = self.client_ids
+        
         # Send client ID to client to confirm connection
         client_socket.send(("id " + str(client_id)).encode())
+        
         # Announce that a client has been connected.
         print("A client with ID #%d has connected, waiting for queries." % (client_id))
 
@@ -106,6 +108,14 @@ class Server:
 
         # Broadcast to all clients that a new client has joined
         self.broadcast_client_join(client_id, client_name)
+
+        # List up to 5 groups when a user connects
+        example_groups = list(self.groups)[0:5]
+        if len(example_groups) > 0:
+            example_groups_message = "Current server groups: " + ", ".join(example_groups)
+            if len(example_groups) > 5:
+                example_groups_message += "..."
+            client_socket.send(example_groups_message.encode())
 
         # Handle client requests
         while True:
@@ -262,7 +272,6 @@ class Server:
                             info["client_socket"].send(f"New member {client_name} has joined group '{group}'.".encode())
                     return_message = f"Added to group '{group}'.\nCurrent Members: " + ", ".join(self.groups[group])
                     client_socket.send(return_message.encode())
-
 
     def handle_post(self, client_id, group, subject, *message):
         """Post a message to a group's board with a given subject and message. Notifies all group members of post."""
