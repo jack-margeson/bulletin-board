@@ -147,8 +147,7 @@ class Server:
                     group_users = ", ".join(self.groups["default"])
                     client_socket.send(("Users in 'default': " + group_users).encode())
                 case "leave":
-                    # TODO
-                    client_socket.send("leave command.".encode())
+                    self.handle_leave(client_id, "default")
                 case "message":
                     if len(params) < 1:
                         client_socket.send("Error: Missing message ID.".encode())
@@ -199,8 +198,10 @@ class Server:
                     group_users = ", ".join(self.groups[params[0]])
                     client_socket.send((f"Users in '{params[0]}': " + group_users).encode())
                 case "groupleave":
-                    # TODO
-                    client_socket.send("groupleave command.".encode())
+                    if len(params) < 1 or params[0] not in self.groups:
+                        client_socket.send("Error: Invalid group name.".encode())
+                        break
+                    self.handle_leave(client_id, params[0])
                 case "groupmessage":
                     if len(params) < 2:
                         client_socket.send("Error: Missing group ID or message ID.".encode())
@@ -299,6 +300,25 @@ class Server:
                 raise Exception
         except:
             client_socket.send("Error: Message ID does not exist.".encode())
+
+    def handle_leave(self, client_id, group):
+        with self.lock:
+            client_socket = self.connected_clients[client_id]["client_socket"]
+            
+            # Ensure client is part of group
+            sender_name = self.connected_clients[client_id]["name"]
+            if not sender_name in self.groups[group]:
+                client_socket.send(f"Error: Client not member of group '{group}'.".encode())
+                return
+            
+            # Remove client from group
+            self.groups[group].remove(sender_name)
+            client_socket.send(f"You have left group '{group}'.".encode())
+
+            # Broadcast leave message to all clients in the group
+            for cid, info in self.connected_clients.items():
+                if info["name"] in self.groups[group]:
+                    info["client_socket"].send(f"User {sender_name} has left group '{group}'.".encode())
 
 
 class Message:
