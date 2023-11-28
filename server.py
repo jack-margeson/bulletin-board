@@ -144,8 +144,8 @@ class Server:
                         client_socket.send("Error: Missing subject or message.".encode())
                     self.handle_post(client_id, "default", *params)
                 case "users":
-                    # TODO
-                    client_socket.send("users command.".encode())
+                    group_users = ", ".join(self.groups["default"])
+                    client_socket.send(("Users in 'default': " + group_users).encode())
                 case "leave":
                     # TODO
                     client_socket.send("leave command.".encode())
@@ -192,8 +192,12 @@ class Server:
                         client_socket.send("Error: Missing group, subject, or message.".encode())
                     self.handle_post(client_id, *params)
                 case "groupusers":
-                    # TODO
-                    client_socket.send("groupusers command.".encode())
+                    if len(params) < 1 or params[0] not in self.groups:
+                        client_socket.send("Error: Invalid group name".encode())
+                        break
+                    print(params[0])
+                    group_users = ", ".join(self.groups[params[0]])
+                    client_socket.send((f"Users in '{params[0]}': " + group_users).encode())
                 case "groupleave":
                     # TODO
                     client_socket.send("groupleave command.".encode())
