@@ -133,16 +133,7 @@ class Server:
                     )
                     client_socket.send(help_msg.encode())
                 case "join":
-                    response = ""
-                    # If the user isn't in default, add to default group.
-                    if client_name not in self.groups["default"]:
-                        self.groups["default"].append(client_name)
-                        response = "User %s added to group 'default'." % client_name
-                    else:
-                        response = (
-                            "User %s is already part of group 'default'." % client_name
-                        )
-                    client_socket.send(response.encode())
+                    self.handle_join(client_id, "default")
                 case "post":
                     if len(params) < 2:
                         client_socket.send("Error: Missing subject or message.".encode())
@@ -167,31 +158,11 @@ class Server:
                         response += group + ", "
                     client_socket.send(response[:-2].encode())
                 case "groupjoin":
-                    response = ""
                     if len(params) != 1:
-                        response = "Invalid %groupsjoin command. Please supply a group name to join."
+                        client_socket.send("Invalid %groupsjoin command. Please supply a group name to join.".encode())
+                        break
                     else:
-                        if params[0] not in self.groups.keys():
-                            # Add new group and board.
-                            self.groups[params[0]] = [client_name]
-                            self.boards[params[0]] = {}
-                            response = "User %s added to newly created group '%s'." % (
-                                client_name,
-                                params[0],
-                            )
-                        elif params[0] in self.groups.keys():
-                            if client_name in self.groups[params[0]]:
-                                response = "User %s is already part of group '%s'." % (
-                                    client_name,
-                                    params[0],
-                                )
-                            else:
-                                self.groups[params[0]].append(client_name)
-                                response = "User %s added to group '%s'." % (
-                                    client_name,
-                                    params[0],
-                                )
-                    client_socket.send(response.encode())
+                        self.handle_join(client_id, params[0])
                 case "grouppost":
                     if len(params) < 3:
                         client_socket.send("Error: Missing group, subject, or message.".encode())
@@ -247,7 +218,6 @@ class Server:
             # If user supplied group on connect that does exist, add them to the group.
             elif client_name not in self.groups[client_group]:
                 self.groups[client_group].append(client_name)
-            print(self.groups)
 
             # BOARDS
             # Create a board for default if it doesn't exist yet
@@ -257,7 +227,6 @@ class Server:
             for group in self.groups.keys():
                 if group not in self.boards.keys():
                     self.boards[group] = {}
-            print(self.boards)
 
     def broadcast_client_join(self, client_id, client_name):
         """Broadcast to all clients that a new client has joined."""
@@ -272,6 +241,29 @@ class Server:
                     # Print to all other clients on their socket that *this* client has joined with its information
                     client["client_socket"].send(encodedMessage)
     
+    def handle_join(self, client_id, group):
+        with self.lock:
+            client_name = self.connected_clients[client_id]["name"]
+            client_socket = self.connected_clients[client_id]["client_socket"]
+            if group not in self.groups.keys():
+                # Add new group and board.
+                self.groups[group] = [client_name]
+                self.boards[group] = {}
+                client_socket.send(f"Added to new group '{group}'.".encode())
+                return
+            else:
+                if client_name in self.groups[group]:
+                    client_socket.send(f"Already part of group '{group}'.".encode())
+                else:
+                    self.groups[group].append(client_name)
+                    # Broadcast new message to all clients in the group
+                    for cid, info in self.connected_clients.items():
+                        if info["name"] is not client_name and info["name"] in self.groups[group]:
+                            info["client_socket"].send(f"New member {client_name} has joined group '{group}'.".encode())
+                    return_message = f"Added to group '{group}'.\nCurrent Members: " + ", ".join(self.groups[group])
+                    client_socket.send(return_message.encode())
+
+
     def handle_post(self, client_id, group, subject, *message):
         """Post a message to a group's board with a given subject and message. Notifies all group members of post."""
         with self.lock:
