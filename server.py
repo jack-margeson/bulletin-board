@@ -142,6 +142,7 @@ class Server:
                 case "post":
                     if len(params) < 2:
                         client_socket.send("Error: Missing subject or message.".encode())
+                        break
                     self.handle_post(client_id, "default", *params)
                 case "users":
                     group_users = ", ".join(self.groups["default"])
@@ -151,6 +152,7 @@ class Server:
                 case "message":
                     if len(params) < 1:
                         client_socket.send("Error: Missing message ID.".encode())
+                        break
                     self.handle_message(client_id, "default", *params)
                 case "exit":
                     # TODO
@@ -189,6 +191,7 @@ class Server:
                 case "grouppost":
                     if len(params) < 3:
                         client_socket.send("Error: Missing group, subject, or message.".encode())
+                        break
                     self.handle_post(client_id, *params)
                 case "groupusers":
                     if len(params) < 1 or params[0] not in self.groups:
@@ -205,6 +208,7 @@ class Server:
                 case "groupmessage":
                     if len(params) < 2:
                         client_socket.send("Error: Missing group ID or message ID.".encode())
+                        break
                     self.handle_message(client_id, *params)
                 case _:
                     client_socket.send("Invalid command.".encode())
