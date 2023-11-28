@@ -201,7 +201,10 @@ class Server:
                     if len(params) < 1 or params[0] not in self.groups:
                         client_socket.send("Error: Invalid group name".encode())
                         break
-                    print(params[0])
+                    # Ensure client is part of group
+                    if client_name not in self.groups[params[0]]:
+                        client_socket.send(f"Error: Client not member of group '{params[0]}'.".encode())
+                        break
                     group_users = ", ".join(self.groups[params[0]])
                     client_socket.send((f"Users in '{params[0]}': " + group_users).encode())
                 case "groupleave":
