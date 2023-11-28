@@ -12,6 +12,7 @@ import signal
 import sys
 import pickle
 from os.path import exists
+import datetime
 
 # Define the max number of connections
 MAX_CONNECTIONS = 5
@@ -139,8 +140,9 @@ class Server:
                         )
                     client_socket.send(response.encode())
                 case "post":
-                    # TODO
-                    client_socket.send("post command.".encode())
+                    if len(params) < 2:
+                        client_socket.send("Error: Missing subject or message.".encode())
+                    self.handle_post(client_id, "default", *params)
                 case "users":
                     # TODO
                     client_socket.send("users command.".encode())
@@ -148,8 +150,9 @@ class Server:
                     # TODO
                     client_socket.send("leave command.".encode())
                 case "message":
-                    # TODO
-                    client_socket.send("message command.".encode())
+                    if len(params) < 1:
+                        client_socket.send("Error: Missing message ID.".encode())
+                    self.handle_message(client_id, "default", *params)
                 case "exit":
                     # TODO
                     client_socket.send("exit command.".encode())
@@ -185,8 +188,9 @@ class Server:
                                 )
                     client_socket.send(response.encode())
                 case "grouppost":
-                    # TODO
-                    client_socket.send("grouppost command.".encode())
+                    if len(params) < 3:
+                        client_socket.send("Error: Missing group, subject, or message.".encode())
+                    self.handle_post(client_id, *params)
                 case "groupusers":
                     # TODO
                     client_socket.send("groupusers command.".encode())
@@ -194,8 +198,9 @@ class Server:
                     # TODO
                     client_socket.send("groupleave command.".encode())
                 case "groupmessage":
-                    # TODO
-                    client_socket.send("groupmessage command.".encode())
+                    if len(params) < 2:
+                        client_socket.send("Error: Missing group ID or message ID.".encode())
+                    self.handle_message(client_id, *params)
                 case _:
                     client_socket.send("Invalid command.".encode())
 
@@ -250,6 +255,46 @@ class Server:
                 if cid != client_id:
                     # Print to all other clients on their socket that *this* client has joined with its information
                     client["client_socket"].send(encodedMessage)
+    
+    def handle_post(self, client_id, group, subject, *message):
+        with self.lock:
+            # Ensure client is part of group
+            sender_name = self.connected_clients[client_id]["name"]
+            if not sender_name in self.groups[group]:
+                self.connected_clients[client_id]["client_socket"].send("Error: Client not member of group.".encode())
+                return
+            
+            message_id = len(self.boards[group])
+            self.boards[group][message_id] = {
+                "sender": sender_name,
+                "date": datetime.datetime.now().date(),
+                "subject": subject,
+                "message": "".join(message),
+            }
+            # Broadcast new message to all clients in the group
+            for cid, info in self.connected_clients.items():
+                if info["name"] in self.groups[group]:
+                    info["client_socket"].send(f"New message posted in {group} by {sender_name} with ID#{message_id}.".encode())
+
+    def handle_message(self, client_id, group, message_id):
+        client_socket = self.connected_clients[client_id]["client_socket"]
+
+        # Ensure client is part of group
+        sender_name = self.connected_clients[client_id]["name"]
+        if not sender_name in self.groups[group]:
+            client_socket.send("Error: Client not member of group.".encode())
+            return
+        
+        # Ensure message exists
+        try:
+            message = self.boards[group][int(message_id)]
+            if message is not None:
+                encodedMessage = f"{message['sender']} on {message['date']} ({message['subject']}): {message['message']}".encode()
+                client_socket.send(encodedMessage)
+            else:
+                raise Exception
+        except:
+            client_socket.send("Error: Message ID does not exist.".encode())
 
 
 class Message:
