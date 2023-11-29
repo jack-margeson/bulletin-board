@@ -13,6 +13,7 @@ import sys
 import pickle
 from os.path import exists
 import datetime
+import copy
 
 # Define the max number of connections
 MAX_CONNECTIONS = 5
@@ -74,6 +75,7 @@ class Server:
             self.boards = pickle.load(boards_pkl)
             print(len(self.boards), " board(s) loaded")
             boards_pkl.close()
+            print(self.boards)  
         else:
             print("No boards loaded (missing boards.pkl)!")
 
@@ -289,12 +291,14 @@ class Server:
                 self.connected_clients[client_id]["client_socket"].send("Error: Client not member of group.".encode())
                 return
             
+            print( self.groups[group])
             message_id = len(self.boards[group])
             self.boards[group][message_id] = {
                 "sender": sender_name,
                 "date": datetime.datetime.now().date(),
                 "subject": subject,
-                "message": "".join(message),
+                "message": " ".join(message),
+                "users_at_time_of_posting": copy.deepcopy(self.groups[group]),
             }
             # Broadcast new message to all clients in the group
             for cid, info in self.connected_clients.items():
@@ -315,8 +319,17 @@ class Server:
         try:
             message = self.boards[group][int(message_id)]
             if message is not None:
-                encodedMessage = f"{message['sender']} on {message['date']} ({message['subject']}): {message['message']}".encode()
-                client_socket.send(encodedMessage)
+                if sender_name not in self.boards[group][int(message_id)]['users_at_time_of_posting']:
+                    # Check if they're in the list of members two posts from now.
+                    if (sender_name in self.boards[group][int(message_id)+1]['users_at_time_of_posting'] or
+                        sender_name in self.boards[group][int(message_id)+2]['users_at_time_of_posting']):
+                        encodedMessage = f"{message['sender']} on {message['date']} ({message['subject']}): {message['message']}".encode()
+                        client_socket.send(encodedMessage)
+                    else:
+                        client_socket.send("Error: You are trying to access a message from too far in the past from when you joined the current group. (Limit: 2)".encode())
+                else:
+                    encodedMessage = f"{message['sender']} on {message['date']} ({message['subject']}): {message['message']}".encode()
+                    client_socket.send(encodedMessage)
             else:
                 raise Exception
         except:
